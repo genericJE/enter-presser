@@ -2,29 +2,43 @@
 
 A tiny command-line tool that waits for a specified number of minutes, then presses Enter/Return in the currently focused application.
 
-Usage:
+## Install with Homebrew
 
-    uv run enter-presser 23
+```bash
+brew tap genericJE/tools
+brew install enter-presser
+```
 
-Dry run test:
+## Usage:
 
-    uv run enter-presser 0.05 --dry-run
+```bash
+enter-presser 23  # 23 minutes
+enter-presser 01:02:03  # HH:MM:SS format -> Waiting 1 hour 2 minutes and 3 seconds
+```
 
-Multiple presses:
+### Dry run test:
 
-    uv run enter-presser 23 --count 3 --interval 2
+```bash
+enter-presser 0.05 --dry-run  # 3 seconds
+```
 
-Setup:
+### Multiple presses:
 
-    uv sync
-    uv run enter-presser --help
+```bash
+enter-presser 23 --count 3 --interval 2  # Presses enter 3 times with a 2 second interval between after 23 minutes of wainting
+```
 
-macOS permissions:
+## Development Setup:
+
+```bash
+uv sync
+uv run enter-presser --help
+```
+
+## macOS permissions:
 
 On macOS, the terminal app running this command may need Accessibility permission.
 
 Go to:
-
-System Settings -> Privacy & Security -> Accessibility
-
+`System Settings` -> `Privacy & Security` -> `Accessibility`
 Enable Terminal, iTerm, Ghostty, or whichever terminal you use.
