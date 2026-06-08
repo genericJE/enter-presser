@@ -1,28 +1,53 @@
 from __future__ import annotations
 
 import argparse
+import re
 import time
 from dataclasses import dataclass
 
 from pynput.keyboard import Controller, Key
 
 
+TIME_PATTERN = re.compile(r"^(?P<hours>\d+):(?P<minutes>[0-5]\d):(?P<seconds>[0-5]\d)$")
+
+
 @dataclass(frozen=True)
 class Config:
-    minutes: float
+    seconds: float
+    raw_time: str
     count: int
     interval_seconds: float
     dry_run: bool
 
 
-def non_negative_float(value: str) -> float:
+def parse_time(value: str) -> float:
+    """
+    Parse either:
+    - plain minutes, e.g. "23" or "0.5"
+    - HH:MM:SS, e.g. "00:23:00" or "01:30:15"
+
+    Returns seconds.
+    """
+    match = TIME_PATTERN.fullmatch(value)
+
+    if match:
+        hours = int(match.group("hours"))
+        minutes = int(match.group("minutes"))
+        seconds = int(match.group("seconds"))
+        return float(hours * 3600 + minutes * 60 + seconds)
+
     try:
-        parsed = float(value)
+        minutes_as_float = float(value)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError(f"invalid float value: {value!r}") from exc
-    if parsed < 0:
-        raise argparse.ArgumentTypeError("value must be non-negative")
-    return parsed
+        raise argparse.ArgumentTypeError(
+            "time must be either minutes, like '23' or '0.5', "
+            "or HH:MM:SS, like '00:23:00'"
+        ) from exc
+
+    if minutes_as_float < 0:
+        raise argparse.ArgumentTypeError("time must be non-negative")
+
+    return minutes_as_float * 60
 
 
 def positive_int(value: str) -> int:
@@ -35,6 +60,16 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def non_negative_float(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid float value: {value!r}") from exc
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be non-negative")
+    return parsed
+
+
 def parse_args() -> Config:
     parser = argparse.ArgumentParser(
         prog="enter-presser",
@@ -44,9 +79,9 @@ def parse_args() -> Config:
         "-t",
         "--time",
         required=True,
-        type=non_negative_float,
-        metavar="MINUTES",
-        help="Delay before pressing Enter, in minutes. Example: -t 23",
+        type=parse_time,
+        metavar="MINUTES_OR_HH:MM:SS",
+        help="Delay before pressing Enter. Accepts minutes, e.g. 23, or HH:MM:SS, e.g. 00:23:00.",
     )
     parser.add_argument(
         "--count",
@@ -68,11 +103,24 @@ def parse_args() -> Config:
     )
     args = parser.parse_args()
     return Config(
-        minutes=args.time,
+        seconds=args.time,
+        raw_time=str(args.time),
         count=args.count,
         interval_seconds=args.interval,
         dry_run=args.dry_run,
     )
+
+
+def format_duration(seconds: float) -> str:
+    total_seconds = int(seconds)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds_part = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours}h {minutes}m {seconds_part}s"
+    if minutes:
+        return f"{minutes}m {seconds_part}s"
+    return f"{seconds:g}s"
 
 
 def press_enter(count: int, interval_seconds: float) -> None:
@@ -86,13 +134,12 @@ def press_enter(count: int, interval_seconds: float) -> None:
 
 def main() -> None:
     config = parse_args()
-    delay_seconds = config.minutes * 60
 
-    print(f"Waiting {config.minutes:g} minute(s).")
+    print(f"Waiting {format_duration(config.seconds)}.")
     print("Focus the target input box now. Press Ctrl+C to cancel.")
 
     try:
-        time.sleep(delay_seconds)
+        time.sleep(config.seconds)
         if config.dry_run:
             print(f"Dry run: would press Enter {config.count} time(s).")
             return
