@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A tiny CLI that waits for a timer, then presses Enter in the focused app."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["pynput>=1.7.7"]
+dependencies = []
 
 [project.scripts]
 enter-presser = "enter_presser:main"
