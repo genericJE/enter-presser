@@ -4,15 +4,15 @@ A tiny command-line tool that waits for a specified number of minutes, then pres
 
 Usage:
 
-    uv run enter-presser -t 23
+    uv run enter-presser 23
 
 Dry run test:
 
-    uv run enter-presser -t 0.05 --dry-run
+    uv run enter-presser 0.05 --dry-run
 
 Multiple presses:
 
-    uv run enter-presser -t 23 --count 3 --interval 2
+    uv run enter-presser 23 --count 3 --interval 2
 
 Setup:
 

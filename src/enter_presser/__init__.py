@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import time
 from dataclasses import dataclass
-
-from pynput.keyboard import Controller, Key
 
 
 TIME_PATTERN = re.compile(r"^(?P<hours>\d+):(?P<minutes>[0-5]\d):(?P<seconds>[0-5]\d)$")
@@ -14,7 +13,6 @@ TIME_PATTERN = re.compile(r"^(?P<hours>\d+):(?P<minutes>[0-5]\d):(?P<seconds>[0-
 @dataclass(frozen=True)
 class Config:
     seconds: float
-    raw_time: str
     count: int
     interval_seconds: float
     dry_run: bool
@@ -55,8 +53,10 @@ def positive_int(value: str) -> int:
         parsed = int(value)
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid integer value: {value!r}") from exc
+
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be at least 1")
+
     return parsed
 
 
@@ -65,20 +65,20 @@ def non_negative_float(value: str) -> float:
         parsed = float(value)
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid float value: {value!r}") from exc
+
     if parsed < 0:
         raise argparse.ArgumentTypeError("value must be non-negative")
+
     return parsed
 
 
 def parse_args() -> Config:
     parser = argparse.ArgumentParser(
         prog="enter-presser",
-        description="Press Enter/Return in the currently focused application after a delay.",
+        description="Press Enter/Return in the currently focused macOS application after a delay.",
     )
     parser.add_argument(
-        "-t",
-        "--time",
-        required=True,
+        "time",
         type=parse_time,
         metavar="MINUTES_OR_HH:MM:SS",
         help="Delay before pressing Enter. Accepts minutes, e.g. 23, or HH:MM:SS, e.g. 00:23:00.",
@@ -101,10 +101,11 @@ def parse_args() -> Config:
         action="store_true",
         help="Wait, then print what would happen without pressing Enter.",
     )
+
     args = parser.parse_args()
+
     return Config(
         seconds=args.time,
-        raw_time=str(args.time),
         count=args.count,
         interval_seconds=args.interval,
         dry_run=args.dry_run,
@@ -123,11 +124,17 @@ def format_duration(seconds: float) -> str:
     return f"{seconds:g}s"
 
 
+def press_enter_once() -> None:
+    subprocess.run(
+        ["osascript", "-e", 'tell application "System Events" to key code 36'],
+        check=True,
+    )
+
+
 def press_enter(count: int, interval_seconds: float) -> None:
-    keyboard = Controller()
     for index in range(count):
-        keyboard.press(Key.enter)
-        keyboard.release(Key.enter)
+        press_enter_once()
+
         if index < count - 1:
             time.sleep(interval_seconds)
 
@@ -140,13 +147,22 @@ def main() -> None:
 
     try:
         time.sleep(config.seconds)
+
         if config.dry_run:
             print(f"Dry run: would press Enter {config.count} time(s).")
             return
+
         press_enter(config.count, config.interval_seconds)
         print(f"Pressed Enter {config.count} time(s).")
+
     except KeyboardInterrupt:
         print("\nCancelled.")
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(
+            "Failed to press Enter using macOS System Events. "
+            "Make sure your terminal has Accessibility permission in "
+            "System Settings -> Privacy & Security -> Accessibility."
+        ) from exc
 
 
 if __name__ == "__main__":
