@@ -1,6 +1,6 @@
 [project]
 name = "enter-presser"
-version = "0.1.0"
+version = "0.2.0"
 description = "A tiny CLI that waits for a timer, then presses Enter in the focused app."
 readme = "README.md"
 requires-python = ">=3.11"
